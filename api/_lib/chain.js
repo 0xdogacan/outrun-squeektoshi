@@ -43,8 +43,17 @@ async function getJSON(url, timeoutMs = 8000) {
 // Fallback when the Squeekchain API refuses server requests: the same public
 // values, set as environment variables. settledThroughRound is then unknown and
 // settlement is inferred from the RoundRecorded events themselves.
+// Defaults: the Sepolia SqueekCore deployment as published by /v1/core on 2026-11-06.
+// If Squeekchain redeploys, set the SQUEEKCORE_* variables in Vercel to the new values.
+const CORE_DEFAULTS = {
+  SQUEEKCORE_ADDRESS: "0xfd6c166d4b8e2962e65746a13e5a0797cd4de0c4",
+  SQUEEKCORE_DEPLOYMENT_BLOCK: "12057556",
+  SQUEEKCORE_GENESIS_TIMESTAMP: "1793735400",
+  SQUEEKCORE_ROUND_DURATION: "600",
+};
+
 function coreFromEnv() {
-  const e = process.env;
+  const e = { ...CORE_DEFAULTS, ...Object.fromEntries(Object.keys(CORE_DEFAULTS).filter((k) => process.env[k]).map((k) => [k, process.env[k]])) };
   const genesisMs = Number(e.SQUEEKCORE_GENESIS_TIMESTAMP) * 1000;
   const durationMs = Number(e.SQUEEKCORE_ROUND_DURATION || 600) * 1000;
   const coreAddress = (e.SQUEEKCORE_ADDRESS || "").toLowerCase();
