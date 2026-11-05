@@ -80,7 +80,7 @@ test("/api/rounds lists ghosts with distance from calibration", async () => {
   assert.equal(r.body.ghosts[1].meters, 574);
   assert.equal(r.body.ghostOfTheWeek.round, 90);
   assert.equal(r.body.ghostOfTheWeek.difficulty, "Zoomies");
-  assert.equal(r.body.ghosts[0].startsAt, (GENESIS_S + 95 * 600) * 1000);
+  assert.equal(r.body.ghosts[0].startsAt, (GENESIS_S + 94 * 600) * 1000);
 });
 
 test("/api/round: settled, zero-work and pending", async () => {

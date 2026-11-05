@@ -2,7 +2,7 @@
 // The official (settled) result of one round, or { state: "pending" }.
 
 import { lookupRound, getCore, getStatus, circumference } from "./_lib/chain.js";
-import { hamsterMeters } from "../lib/core.js";
+import { hamsterMeters, roundEndMs } from "../lib/core.js";
 
 export default async function handler(req, res) {
   const round = Number(req.query.r);
@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   }
   try {
     const core = await getCore();
-    const endsAt = core.genesisMs + (round + 1) * core.durationMs;
+    const endsAt = roundEndMs(round, core.genesisMs, core.durationMs);
     if (Date.now() < endsAt) {
       res.setHeader("cache-control", "no-store");
       res.status(200).json({ state: "running", round, endsAt });

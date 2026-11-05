@@ -7,14 +7,18 @@ import {
 
 const G = 1_700_000_000_000;
 const D = 600_000;
+const G2 = 1_793_735_400_000;
 
 test("round boundaries follow genesis + r * duration", () => {
-  assert.equal(roundIndexAt(G, G, D), 0);
-  assert.equal(roundIndexAt(G + D - 1, G, D), 0);
-  assert.equal(roundIndexAt(G + D, G, D), 1);
+  assert.equal(roundIndexAt(G, G, D), 1);
+  assert.equal(roundIndexAt(G + D - 1, G, D), 1);
+  assert.equal(roundIndexAt(G + D, G, D), 2);
   assert.equal(roundIndexAt(G - 1, G, D), null);
-  assert.equal(roundStartMs(5, G, D), G + 5 * D);
-  assert.deepEqual(nextRoundStart(G + 2.5 * D, G, D), { round: 3, startsAt: G + 3 * D });
+  assert.equal(roundStartMs(5, G, D), G + 4 * D);
+  assert.deepEqual(nextRoundStart(G + 2.5 * D, G, D), { round: 4, startsAt: G + 3 * D });
+  // Livestream check: round 304 of the 2026-11-04 deployment ended at 01:30 Istanbul time.
+  assert.equal(new Date(G2 + 304 * D).toISOString(), "2026-11-05T22:30:00.000Z");
+  assert.equal(roundIndexAt(Date.parse("2026-11-05T22:21:12Z"), G2, D), 304);
 });
 
 test("hamster distance is work times circumference", () => {

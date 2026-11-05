@@ -2,7 +2,7 @@
 // Round clock, live wheel state, wheel calibration and the list of ghost rounds.
 
 import { getCore, getStatus, liveFromStatus, recentRounds, circumference } from "./_lib/chain.js";
-import { hamsterMeters, difficultyOf } from "../lib/core.js";
+import { hamsterMeters, difficultyOf, roundStartMs } from "../lib/core.js";
 
 export default async function handler(req, res) {
   try {
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
       work: r.work,
       meters: hamsterMeters(r.work, calib.mm),
       difficulty: difficultyOf(r.work),
-      startsAt: core.genesisMs + r.round * core.durationMs,
+      startsAt: roundStartMs(r.round, core.genesisMs, core.durationMs),
       txHash: r.txHash,
     }));
     const weekBest = rounds.reduce((best, r) => (!best || r.work > best.work ? r : best), null);
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
         work: weekBest.work,
         meters: hamsterMeters(weekBest.work, calib.mm),
         difficulty: difficultyOf(weekBest.work),
-        startsAt: core.genesisMs + weekBest.round * core.durationMs,
+        startsAt: roundStartMs(weekBest.round, core.genesisMs, core.durationMs),
         txHash: weekBest.txHash,
       },
       roundsError,

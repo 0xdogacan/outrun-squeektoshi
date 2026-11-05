@@ -4,7 +4,7 @@
 
 import { lookupRound, getCore, getStatus, circumference } from "./_lib/chain.js";
 import { supabaseConfigured, sb } from "./_lib/supabase.js";
-import { hamsterMeters, plausibility } from "../lib/core.js";
+import { hamsterMeters, plausibility, roundEndMs } from "../lib/core.js";
 
 const PERIODS = { day: 86400e3, week: 7 * 86400e3 };
 const COLUMNS = "nickname,mode,round,player_m,hamster_m,margin_m,created_at";
@@ -62,7 +62,7 @@ async function submit(req, res) {
   }
 
   const core = await getCore();
-  const endsAt = core.genesisMs + (round + 1) * core.durationMs;
+  const endsAt = roundEndMs(round, core.genesisMs, core.durationMs);
   if (mode === "live" && (Date.now() < endsAt || Date.now() - endsAt > 6 * 3600e3)) {
     res.status(422).json({ error: "Live results must be sent within 6 hours of the round." });
     return;
