@@ -64,8 +64,29 @@ async function loadRounds() {
   } catch {
     data = null;
   }
+  // The server may be refused by the Squeekchain API; the browser can read it directly.
+  if (!data?.live?.available) {
+    const live = await browserLive();
+    if (live) data = data ? { ...data, live } : { live };
+  }
   renderLive();
   renderGhosts();
+}
+
+async function browserLive() {
+  try {
+    const j = await (await fetch(`${SQUEEK_API}/v1/status`, { cache: "no-store" })).json();
+    const m = j.measurement;
+    if (!m) return null;
+    const fresh = m.freshness === "online";
+    return {
+      available: true, fresh, coreStatus: m.coreStatus, provenance: m.provenance,
+      running: fresh && m.coreStatus === "ACTIVE" && Number(m.rpmMilli) > 0,
+      rpm: Number(m.rpmMilli) / 1000, speedMmPerSecond: Number(m.speedMmPerSecond),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function renderLive() {
@@ -107,7 +128,7 @@ function renderGhosts() {
   const boss = $("boss");
   list.replaceChildren();
   boss.hidden = true;
-  if (!data) {
+  if (!data?.clock) {
     list.innerHTML = `<p class="muted">Could not reach Squeekchain. Try again in a minute.</p>`;
     return;
   }

@@ -47,7 +47,32 @@
     <h2>Fair play for the hamster</h2>
     <p>Squeektoshi runs when he wants to. Nothing here asks anyone to wake him, push him or change his routine. Naps are part of the game.</p>
 
+    <h2>Live wheel reading</h2>
+    <p id="calib">Reading the wheel…</p>
+
     <p class="fineprint">Not affiliated with Squeekchain. Data from the public <a href="https://docs.squeekchain.com/developers/api/" target="_blank" rel="noopener">Squeekchain API</a> and SqueekCore on Ethereum Sepolia.</p>
   </main>
+  <script type="module">
+    import { circumferenceFromTelemetry } from "/lib/core.js";
+    const el = document.getElementById("calib");
+    const samples = [];
+    async function read() {
+      try {
+        const m = (await (await fetch("https://api.squeekchain.com/v1/status", { cache: "no-store" })).json()).measurement;
+        const c = circumferenceFromTelemetry(Number(m.speedMmPerSecond), Number(m.rpmMilli));
+        if (c) samples.push(c);
+        if (!samples.length) {
+          el.textContent = m.coreStatus === "ACTIVE" ? "Wheel is spinning, measuring…" : "Squeektoshi is resting. The wheel size is measured while he runs.";
+          return;
+        }
+        const s = [...samples].sort((a, b) => a - b);
+        el.textContent = `Measured wheel circumference: ${Math.round(s[Math.floor(s.length / 2)])} mm (median of ${s.length} readings, ${(m.rpmMilli / 1000).toFixed(0)} RPM now).`;
+      } catch {
+        el.textContent = "Live wheel data is unavailable right now.";
+      }
+    }
+    read();
+    setInterval(read, 5000);
+  </script>
 </body>
 </html>

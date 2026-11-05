@@ -30,16 +30,39 @@ async function cached(key, ttlMs, fn) {
 
 async function getJSON(url, timeoutMs = 8000) {
   const res = await fetch(url, {
-    headers: { accept: "application/json", "user-agent": "outrun-squeektoshi" },
+    headers: {
+      accept: "application/json",
+      "user-agent": "Mozilla/5.0 (compatible; OutrunSqueektoshi/1.0; +https://github.com/0xdogacan/outrun-squeektoshi)",
+    },
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`${url} -> HTTP ${res.status}`);
   return res.json();
 }
 
+// Fallback when the Squeekchain API refuses server requests: the same public
+// values, set as environment variables. settledThroughRound is then unknown and
+// settlement is inferred from the RoundRecorded events themselves.
+function coreFromEnv() {
+  const e = process.env;
+  const genesisMs = Number(e.SQUEEKCORE_GENESIS_TIMESTAMP) * 1000;
+  const durationMs = Number(e.SQUEEKCORE_ROUND_DURATION || 600) * 1000;
+  const coreAddress = (e.SQUEEKCORE_ADDRESS || "").toLowerCase();
+  const deploymentBlock = Number(e.SQUEEKCORE_DEPLOYMENT_BLOCK);
+  if (!(genesisMs > 0) || !/^0x[0-9a-f]{40}$/.test(coreAddress) || !(deploymentBlock > 0)) return null;
+  return { genesisMs, durationMs, coreAddress, deploymentBlock, settledThroughRound: -1, source: "env" };
+}
+
 export async function getCore() {
   return cached("core", 30_000, async () => {
-    const j = await getJSON(`${API_BASE}/v1/core`);
+    let j;
+    try {
+      j = await getJSON(`${API_BASE}/v1/core`);
+    } catch (err) {
+      const fallback = coreFromEnv();
+      if (fallback) return fallback;
+      throw err;
+    }
     if (j.status !== "available") throw new Error(`core unavailable: ${j.reason || "unknown"}`);
     const cfg = j.configuration || {};
     const genesisMs = Number(cfg.genesisTimestamp) * 1000;
@@ -174,6 +197,8 @@ export async function lookupRound(round) {
   });
   if (logs.length) return { state: "settled", round, work: logs[0].work, txHash: logs[0].txHash };
   if (core.settledThroughRound >= round) return { state: "settled", round, work: 0, txHash: null };
+  // Batches settle rounds in order, so a later recorded round means this one settled with zero work.
+  if (recent.some((r) => r.round > round)) return { state: "settled", round, work: 0, txHash: null };
   return { state: "pending", round };
 }
 
