@@ -10,11 +10,10 @@ export function supabaseConfigured() {
 
 export async function sb(path, { method = "GET", body, prefer } = {}) {
   if (!supabaseConfigured()) throw new Error("Supabase is not configured");
-  const headers = {
-    apikey: KEY,
-    authorization: `Bearer ${KEY}`,
-    "content-type": "application/json",
-  };
+  // Works with both key styles: legacy service_role JWTs (eyJ…) and new sb_secret_ keys.
+  // New secret keys are not JWTs, so they go in the apikey header only.
+  const headers = { apikey: KEY, "content-type": "application/json" };
+  if (KEY.startsWith("eyJ")) headers.authorization = `Bearer ${KEY}`;
   if (prefer) headers.prefer = prefer;
   const res = await fetch(`${URL_}/rest/v1/${path}`, {
     method,
