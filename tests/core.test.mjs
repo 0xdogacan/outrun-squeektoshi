@@ -90,3 +90,11 @@ test("plausibility and verdicts", () => {
   assert.equal(verdict(800.5, 800).kind, "tie");
   assert.equal(typeof commentary(verdict(500, 800), 7), "string");
 });
+
+test("Supabase URL is normalized from common pastes", async () => {
+  const { normalizeSupabaseUrl: n } = await import("../api/_lib/supabase.js");
+  assert.equal(n("https://abc.supabase.co/"), "https://abc.supabase.co");
+  assert.equal(n("https://abc.supabase.co/rest/v1/"), "https://abc.supabase.co");
+  assert.equal(n(" abc.supabase.co "), "https://abc.supabase.co");
+  assert.equal(n("https://supabase.com/dashboard/project/abc123/settings/api"), "https://abc123.supabase.co");
+});
