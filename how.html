@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How it works · Outrun Squeektoshi</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <style>
+    .prose h2 { margin-top: 28px; }
+    .prose p, .prose li { color: #cfd7d2; }
+    code { font-family: var(--mono); font-size: 14px; color: var(--ham); }
+  </style>
+</head>
+<body>
+  <main class="screen prose">
+    <header class="top">
+      <a class="brand" href="/">OUTRUN<span>SQUEEKTOSHI</span></a>
+      <a class="small-link" href="/">Back to the race</a>
+    </header>
+    <h1>How it works</h1>
+    <p>Squeektoshi is a hamster whose wheel, the WHEELY9000, mines blocks on Squeekchain. Every turn of his wheel is one unit of work, grouped into 10-minute rounds and settled on Ethereum (Sepolia testnet). This site turns those rounds into a race.</p>
+
+    <h2>The hamster's distance</h2>
+    <ul>
+      <li>Each round's work comes from SqueekCore's <code>RoundRecorded</code> events on Ethereum Sepolia. A round settled with no event had zero work.</li>
+      <li>One work unit is one turn of the wheel, so distance = work × wheel circumference.</li>
+      <li>The circumference is measured from Squeekchain's live telemetry while he runs: speed ÷ revolutions per second. We use the median of many readings.</li>
+      <li>Every result links its settlement transaction, so you can check the hamster's number yourself.</li>
+    </ul>
+
+    <h2>Your distance</h2>
+    <ul>
+      <li>Your phone's motion sensor counts your steps. Distance = steps × stride.</li>
+      <li>Stride is the one you enter, or estimated from your height: 41.5% of it when walking and 65% when running.</li>
+      <li>Nothing leaves your phone during the run. Only your nickname, step count and distance are saved when you finish.</li>
+      <li>Results are self-reported. Runs faster than a world-record pace, or with more than 4 steps a second, are hidden from the leaderboard.</li>
+    </ul>
+
+    <h2>Two ways to race</h2>
+    <ul>
+      <li><strong>Ghost Race:</strong> pick one of his real rounds from the last 7 days. His ghost runs at that round's average pace, because Squeekchain records one total per round.</li>
+      <li><strong>Live Race:</strong> while he is on the wheel, join the next round as it happens. His official distance arrives a few minutes after the round, once it settles on Ethereum.</li>
+    </ul>
+
+    <h2>Fair play for the hamster</h2>
+    <p>Squeektoshi runs when he wants to. Nothing here asks anyone to wake him, push him or change his routine. Naps are part of the game.</p>
+
+    <p class="fineprint">Not affiliated with Squeekchain. Data from the public <a href="https://docs.squeekchain.com/developers/api/" target="_blank" rel="noopener">Squeekchain API</a> and SqueekCore on Ethereum Sepolia.</p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Outrun Squeektoshi</title>
+  <meta name="description" content="Can you outrun a hamster? Run with your phone against Squeektoshi's real rounds on Squeekchain.">
+  <meta property="og:title" content="Outrun Squeektoshi">
+  <meta property="og:description" content="Can you outrun a hamster? Race Squeektoshi's real wheel runs, settled on Ethereum.">
+  <meta name="theme-color" content="#0a0c0b">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <!-- HOME -->
+  <main id="home" class="screen">
+    <header class="top">
+      <a class="brand" href="/">OUTRUN<span>SQUEEKTOSHI</span></a>
+      <a class="small-link" href="/how.html">How it works</a>
+    </header>
+
+    <section class="hero">
+      <canvas id="hero-hamster" width="160" height="128" aria-hidden="true"></canvas>
+      <h1>Can you outrun<br>a hamster?</h1>
+      <p class="lede">Squeektoshi runs on a real wheel that mines blocks on Ethereum. Grab your phone, run for 10 minutes and race one of his real rounds.</p>
+      <div id="live-strip" class="live-strip" data-state="loading">
+        <span class="dot"></span><span id="live-text">Checking the wheel…</span>
+      </div>
+      <p id="desktop-note" class="note" hidden>Racing needs your phone's motion sensor. Open <strong id="site-host"></strong> on your phone to run.</p>
+    </section>
+
+    <section class="mode" id="live-card" hidden>
+      <div class="mode-head">
+        <span class="tag tag-live">LIVE</span>
+        <h2>Live Race</h2>
+      </div>
+      <p>Squeektoshi is on the wheel right now. Join the next round and race him as it happens.</p>
+      <p class="countdown">Next round starts in <strong id="live-countdown">--:--</strong></p>
+      <button class="btn btn-live" id="join-live">Join the live round</button>
+    </section>
+
+    <section class="mode">
+      <div class="mode-head">
+        <span class="tag">GHOST</span>
+        <h2>Ghost Race</h2>
+      </div>
+      <p>Pick one of Squeektoshi's real rounds and race his ghost. Starts the moment you tap.</p>
+      <div id="boss" class="boss" hidden></div>
+      <div id="ghost-list" class="ghost-list" aria-live="polite"><p class="muted">Loading his rounds…</p></div>
+    </section>
+
+    <section class="mode">
+      <div class="mode-head"><h2>Leaderboard</h2></div>
+      <p class="muted" id="humans-won"></p>
+      <div class="tabs" role="tablist">
+        <button role="tab" data-mode="ghost" aria-selected="true">Ghost</button>
+        <button role="tab" data-mode="live" aria-selected="false">Live</button>
+        <span class="tabs-gap"></span>
+        <button role="tab" data-period="day" aria-selected="false">Today</button>
+        <button role="tab" data-period="week" aria-selected="true">Week</button>
+        <button role="tab" data-period="all" aria-selected="false">All time</button>
+      </div>
+      <ol id="board" class="board"><li class="muted">Loading…</li></ol>
+      <p class="fineprint">Distances are measured by each runner's phone and are self-reported. Implausible runs are hidden.</p>
+    </section>
+
+    <footer class="foot">
+      <p>Not affiliated with Squeekchain. Hamster data from the public <a href="https://docs.squeekchain.com/" target="_blank" rel="noopener">Squeekchain API</a> and SqueekCore on Ethereum Sepolia. Watch him on <a href="https://x.com/squeekchain" target="_blank" rel="noopener">@squeekchain</a>.</p>
+      <p>Run safely: look where you are going, not at your screen.</p>
+    </footer>
+  </main>
+
+  <!-- SETUP -->
+  <dialog id="setup" class="sheet">
+    <form method="dialog" id="setup-form">
+      <h2 id="setup-title">Before you run</h2>
+      <p id="setup-sub" class="muted"></p>
+      <label>Nickname
+        <input name="nickname" maxlength="20" minlength="2" required autocomplete="nickname" placeholder="2–20 characters">
+      </label>
+      <div class="row">
+        <label>Height (cm)
+          <input name="height" type="number" inputmode="numeric" min="100" max="230" placeholder="175">
+        </label>
+        <label>or stride (cm)
+          <input name="stride" type="number" inputmode="numeric" min="30" max="250" placeholder="optional">
+        </label>
+      </div>
+      <p class="fineprint">We count steps with your phone's motion sensor and multiply by your stride. No location, no camera. Keep this page open while you run.</p>
+      <p id="setup-error" class="error" hidden></p>
+      <div class="actions">
+        <button type="button" class="btn btn-ghost" id="setup-cancel">Cancel</button>
+        <button type="submit" class="btn" id="setup-go">Enable motion &amp; go</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- RACE -->
+  <main id="race" class="screen" hidden>
+    <div class="race-top">
+      <span id="race-mode" class="tag">GHOST</span>
+      <span id="race-round" class="muted"></span>
+      <button class="btn-text" id="race-quit">Quit</button>
+    </div>
+    <div id="race-wait" class="race-wait" hidden>
+      <p class="muted">Round starts in</p>
+      <p class="huge" id="wait-clock">0:00</p>
+      <p class="muted">Get ready. Phone in your hand or pocket, screen on.</p>
+    </div>
+    <div id="race-run">
+      <p class="timer" id="race-clock">10:00</p>
+      <div class="lanes">
+        <div class="lane lane-you">
+          <div class="lane-label"><span>You</span><strong id="you-m">0 m</strong></div>
+          <div class="track"><div class="runner" id="you-bar"></div></div>
+        </div>
+        <div class="lane lane-ham">
+          <div class="lane-label"><span>Squeektoshi</span><strong id="ham-m">0 m</strong></div>
+          <div class="track"><div class="runner" id="ham-bar"></div></div>
+          <p class="lane-note" id="ham-note"></p>
+        </div>
+      </div>
+      <p class="gap-line" id="gap-line">Start running.</p>
+      <div class="stats">
+        <div><span class="muted">Steps</span><strong id="steps">0</strong></div>
+        <div><span class="muted">Cadence</span><strong id="cadence">0.0/s</strong></div>
+        <div><span class="muted">Stride</span><strong id="stride">–</strong></div>
+      </div>
+      <p class="fineprint" id="race-warning">Keep this page open. Locking the phone pauses the sensor.</p>
+    </div>
+  </main>
+
+  <!-- RESULT -->
+  <main id="result" class="screen" hidden>
+    <div class="race-top">
+      <span id="result-mode" class="tag">GHOST</span>
+      <span id="result-round" class="muted"></span>
+    </div>
+    <div id="result-wait" class="race-wait" hidden>
+      <p class="muted">You ran</p>
+      <p class="huge" id="wait-you">0 m</p>
+      <p>Waiting for the hamster's official result.</p>
+      <p class="muted" id="wait-detail">The round settles on Ethereum a few minutes after it ends.</p>
+    </div>
+    <div id="result-final" hidden>
+      <h1 class="verdict" id="verdict"></h1>
+      <p class="quip" id="quip"></p>
+      <canvas id="card" width="1200" height="675" class="card"></canvas>
+      <div class="actions">
+        <a class="btn" id="share-x" target="_blank" rel="noopener">Share on X</a>
+        <button class="btn btn-ghost" id="save-card">Save image</button>
+      </div>
+      <p class="muted" id="proof"></p>
+      <p class="muted" id="submit-status"></p>
+      <button class="btn btn-ghost wide" id="again">Race again</button>
+    </div>
+  </main>
+
+  <script type="module" src="/assets/app.js"></script>
+</body>
+</html>
