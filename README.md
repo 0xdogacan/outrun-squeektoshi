@@ -53,3 +53,7 @@ Open the site with `?sim=1` to practise without a phone: a simulated jog drives 
 ## Not affiliated
 
 Fan-made for the Squeekchain Genesis builders. Squeektoshi runs when he wants to; nothing here asks anyone to disturb him.
+
+## Squeekchain verification
+
+squeekchain-project: d779732a-e18f-4ba5-ae3d-954f6dd896fd
