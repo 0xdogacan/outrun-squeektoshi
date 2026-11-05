@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     res.status(405).json({ error: "Method not allowed." });
   } catch (err) {
     console.error(err);
-    res.status(503).json({ error: "The leaderboard is unavailable right now." });
+    res.status(503).json({ error: "The leaderboard is unavailable right now.", detail: String(err?.message || err) });
   }
 }
 

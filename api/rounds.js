@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     try {
       rounds = await recentRounds(7);
     } catch (err) {
-      roundsError = "Round history is unavailable right now.";
+      roundsError = `Round history is unavailable right now. (${err?.message || err})`;
       console.error(err);
     }
 
@@ -50,6 +50,6 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error(err);
     res.setHeader("cache-control", "no-store");
-    res.status(503).json({ error: "Squeekchain is unavailable right now." });
+    res.status(503).json({ error: "Squeekchain is unavailable right now.", detail: String(err?.message || err) });
   }
 }

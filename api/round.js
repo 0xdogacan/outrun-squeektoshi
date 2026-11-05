@@ -30,6 +30,6 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error(err);
     res.setHeader("cache-control", "no-store");
-    res.status(503).json({ error: "Could not reach Squeekchain. Try again shortly." });
+    res.status(503).json({ error: "Could not reach Squeekchain. Try again shortly.", detail: String(err?.message || err) });
   }
 }
