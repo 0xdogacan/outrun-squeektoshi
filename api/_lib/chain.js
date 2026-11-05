@@ -32,7 +32,7 @@ async function getJSON(url, timeoutMs = 8000) {
   const res = await fetch(url, {
     headers: {
       accept: "application/json",
-      "user-agent": "Mozilla/5.0 (compatible; OutrunSqueektoshi/1.0; +https://github.com/0xdogacan/outrun-squeektoshi)",
+      "user-agent": "Mozilla/5.0 (compatible; HamsterRace/1.0; +https://hamsterrace.xyz)",
     },
     signal: AbortSignal.timeout(timeoutMs),
   });

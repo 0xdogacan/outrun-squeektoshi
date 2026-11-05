@@ -1,4 +1,4 @@
-# Outrun Squeektoshi
+# Hamster Race
 
 **Can you outrun a hamster?** Run with your phone for 10 minutes against Squeektoshi, the hamster whose wheel mines blocks on [Squeekchain](https://docs.squeekchain.com/).
 

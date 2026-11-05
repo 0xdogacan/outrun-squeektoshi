@@ -496,7 +496,7 @@ async function drawCard(result, hamM, title) {
 
   ctx.fillStyle = "#ffb547";
   ctx.font = "700 30px 'Space Mono', monospace";
-  ctx.fillText("OUTRUN SQUEEKTOSHI", 64, 92);
+  ctx.fillText("HAMSTER RACE", 64, 92);
   ctx.fillStyle = "#eef3ef";
   ctx.font = "700 60px 'Space Grotesk', sans-serif";
   wrap(ctx, title, 64, 178, 760, 68);
@@ -551,7 +551,7 @@ $("save-card").addEventListener("click", () => {
   $("card").toBlob((blob) => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "outrun-squeektoshi.png";
+    a.download = "hamster-race.png";
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   });
