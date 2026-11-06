@@ -73,12 +73,22 @@ async function loadRounds() {
   renderGhosts();
 }
 
+// Share a live wheel reading so the server can calibrate the wheel's size.
+function reportCalibration(m) {
+  fetch("/api/calibrate", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ speedMmPerSecond: Number(m.speedMmPerSecond), rpmMilli: Number(m.rpmMilli) }),
+  }).catch(() => {});
+}
+
 async function browserLive() {
   try {
     const j = await (await fetch(`${SQUEEK_API}/v1/status`, { cache: "no-store" })).json();
     const m = j.measurement;
     if (!m) return null;
     const fresh = m.freshness === "online";
+    if (fresh && m.provenance === "hardware" && m.coreStatus === "ACTIVE") reportCalibration(m);
     return {
       available: true, fresh, coreStatus: m.coreStatus, provenance: m.provenance,
       running: fresh && m.coreStatus === "ACTIVE" && Number(m.rpmMilli) > 0,
@@ -338,6 +348,7 @@ async function pollLive() {
     const cum = Number(m.cumulativeWorkUnits);
     if (!race.liveBase || race.liveBase.epoch !== m.counterEpoch) race.liveBase = { epoch: m.counterEpoch, cum };
     race.liveMeters = serverNow() >= race.startAt ? hamsterMeters(cum - race.liveBase.cum, race.circumference) : 0;
+    if (m.provenance === "hardware" && m.coreStatus === "ACTIVE") reportCalibration(m);
     race.liveNote = m.coreStatus === "ACTIVE" ? `Running · ${Math.round(m.rpmMilli / 1000)} RPM · provisional` : "Resting · provisional";
   } catch {
     race.liveMeters = null;
@@ -567,3 +578,9 @@ loadRounds();
 loadBoard();
 setInterval(tickCountdown, 1000);
 setInterval(() => { if (!race) loadRounds(); }, 60000);
+// While the wheel is not calibrated yet, check it more often so a short run is not missed.
+setInterval(async () => {
+  if (race || data?.circumference?.mm) return;
+  const live = await browserLive();
+  if (live?.running && data?.live) { data.live = live; renderLive(); }
+}, 15000);

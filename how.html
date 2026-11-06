@@ -60,7 +60,16 @@
       try {
         const m = (await (await fetch("https://api.squeekchain.com/v1/status", { cache: "no-store" })).json()).measurement;
         const c = circumferenceFromTelemetry(Number(m.speedMmPerSecond), Number(m.rpmMilli));
-        if (c) samples.push(c);
+        if (c) {
+          samples.push(c);
+          if (m.provenance === "hardware" && m.freshness === "online") {
+            fetch("/api/calibrate", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ speedMmPerSecond: Number(m.speedMmPerSecond), rpmMilli: Number(m.rpmMilli) }),
+            }).catch(() => {});
+          }
+        }
         if (!samples.length) {
           el.textContent = m.coreStatus === "ACTIVE" ? "Wheel is spinning, measuring…" : "Squeektoshi is resting. The wheel size is measured while he runs.";
           return;
