@@ -26,15 +26,15 @@ export default async function handler(req, res) {
       res.status(422).json({ error: "Not a usable reading." });
       return;
     }
-    // At most one stored sample every 20 s across all visitors on this instance.
-    if (Date.now() - lastAcceptedAt < 20_000) {
-      res.status(200).json({ ok: true, stored: false });
-      return;
-    }
     const rows = await sb("calibration_samples?select=circumference_mm&order=id.desc&limit=200");
     const current = median(rows.map((r) => Number(r.circumference_mm)));
     if (rows.length >= 5 && Math.abs(mm - current) / current > 0.15) {
       res.status(422).json({ error: "Reading is far from the calibrated value." });
+      return;
+    }
+    // At most one stored sample every 20 s across all visitors on this instance.
+    if (Date.now() - lastAcceptedAt < 20_000) {
+      res.status(200).json({ ok: true, stored: false });
       return;
     }
     lastAcceptedAt = Date.now();
