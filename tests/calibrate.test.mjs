@@ -34,11 +34,10 @@ test("rejects outliers once a few samples exist", async () => {
   assert.equal((await call({ speedMmPerSecond: 1100, rpmMilli: 60000 })).code, 422);
 });
 
-test("odometer reading calibrates while the hamster rests", async () => {
+test("run-distance deltas calibrate the wheel", async () => {
   stored = [];
-  const { circumferenceFromOdometer } = await import("../lib/core.js");
-  assert.equal(circumferenceFromOdometer(6_340_000, 9_000), 6_340_000 / 9_000);
-  assert.equal(circumferenceFromOdometer(6_340_000, 50), null);
-  assert.equal(circumferenceFromOdometer(100, 9_000), null);
-  await new Promise((r) => setTimeout(r, 0));
+  const { circumferenceFromDeltas } = await import("../lib/core.js");
+  assert.equal(circumferenceFromDeltas(70_000, 100), 700);
+  assert.equal(circumferenceFromDeltas(7_000, 10), null);
+  assert.equal(circumferenceFromDeltas(0, 100), null);
 });

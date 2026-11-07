@@ -53,32 +53,22 @@
     <p class="fineprint">Not affiliated with Squeekchain. Data from the public <a href="https://docs.squeekchain.com/developers/api/" target="_blank" rel="noopener">Squeekchain API</a> and SqueekCore on Ethereum Sepolia.</p>
   </main>
   <script type="module">
-    import { circumferenceFromTelemetry, circumferenceFromOdometer } from "/lib/core.js";
+    import { circumferenceFromTelemetry, circumferenceFromDeltas } from "/lib/core.js";
     const el = document.getElementById("calib");
-    const samples = [];
+    let prev = null;
+    let best = null;
     async function read() {
       try {
         const m = (await (await fetch("https://api.squeekchain.com/v1/status", { cache: "no-store" })).json()).measurement;
-        const odo = circumferenceFromOdometer(m.distanceMm, m.cumulativeWorkUnits);
-        if (m.provenance === "hardware" && m.freshness === "online" && odo) {
-          fetch("/api/calibrate", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ distanceMm: Number(m.distanceMm), cumulativeWorkUnits: Number(m.cumulativeWorkUnits) }),
-          }).catch(() => {});
-        }
-        if (odo) {
-          el.textContent = `Wheel circumference: ${Math.round(odo)} mm, from the WHEELY9000 odometer (${(m.distanceMm / 1e6).toFixed(2)} km over ${Number(m.cumulativeWorkUnits).toLocaleString()} turns).`;
-          return;
-        }
-        const c = circumferenceFromTelemetry(Number(m.speedMmPerSecond), Number(m.rpmMilli));
-        if (c) samples.push(c);
-        if (!samples.length) {
-          el.textContent = m.coreStatus === "ACTIVE" ? "Wheel is spinning, measuring…" : "Squeektoshi is resting. The wheel size is measured while he runs.";
-          return;
-        }
-        const sorted = [...samples].sort((a, b) => a - b);
-        el.textContent = `Measured wheel circumference: ${Math.round(sorted[Math.floor(sorted.length / 2)])} mm (median of ${sorted.length} readings).`;
+        const cur = { epoch: m.counterEpoch, d: Number(m.distanceMm), w: Number(m.cumulativeWorkUnits) };
+        let c = null;
+        if (prev && cur.d > prev.d && prev.epoch === cur.epoch) c = circumferenceFromDeltas(cur.d - prev.d, cur.w - prev.w);
+        if (!c && Number(m.rpmMilli) > 0) c = circumferenceFromTelemetry(Number(m.speedMmPerSecond), Number(m.rpmMilli));
+        if (cur.d > 0 && (!prev || cur.w - prev.w >= 20 || prev.epoch !== cur.epoch || cur.d < prev.d)) prev = cur;
+        if (cur.d === 0) prev = null;
+        if (c) best = c;
+        if (best) el.textContent = `Measured wheel circumference: ${Math.round(best)} mm${m.coreStatus === "ACTIVE" ? ` (${(m.rpmMilli / 1000).toFixed(0)} RPM now)` : ""}.`;
+        else el.textContent = m.coreStatus === "ACTIVE" ? "Wheel is spinning, measuring…" : "Squeektoshi is resting. The wheel size is measured while he runs.";
       } catch {
         el.textContent = "Live wheel data is unavailable right now.";
       }

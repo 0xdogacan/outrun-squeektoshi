@@ -1,11 +1,11 @@
-// POST /api/calibrate { distanceMm, cumulativeWorkUnits, speedMmPerSecond, rpmMilli }
+// POST /api/calibrate { deltaDistanceMm, deltaWork } or { speedMmPerSecond, rpmMilli }
 // Visitors' browsers can read Squeekchain's live telemetry even when the server
 // is refused, so they report readings here while the wheel spins. The server
 // recomputes the circumference itself, rejects implausible values and, once a few
 // samples exist, anything more than 15% away from the current median.
 
 import { supabaseConfigured, sb } from "./_lib/supabase.js";
-import { circumferenceFromTelemetry, circumferenceFromOdometer, median } from "../lib/core.js";
+import { circumferenceFromTelemetry, circumferenceFromDeltas, median } from "../lib/core.js";
 
 let lastAcceptedAt = 0;
 
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
   }
   try {
     const b = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
-    const odometer = circumferenceFromOdometer(b.distanceMm, b.cumulativeWorkUnits);
+    const odometer = circumferenceFromDeltas(b.deltaDistanceMm, b.deltaWork);
     const live = Number(b.rpmMilli) >= 10000 ? circumferenceFromTelemetry(Number(b.speedMmPerSecond), Number(b.rpmMilli)) : null;
     const mm = odometer || live;
     if (!mm) {

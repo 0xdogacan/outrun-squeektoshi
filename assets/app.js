@@ -73,20 +73,26 @@ async function loadRounds() {
   renderGhosts();
 }
 
-// Share a wheel reading so the server can calibrate the wheel's size
-// (odometer distance / total turns works even while he rests). At most once a minute.
+// Share wheel readings so the server can calibrate the wheel's size. During a run,
+// the change in run distance over the change in turns gives mm per turn.
 let lastCalibrationReport = 0;
+let prevReading = null;
 function reportCalibration(m) {
-  if (Date.now() - lastCalibrationReport < 60000) return;
+  const now = { epoch: m.counterEpoch, d: Number(m.distanceMm), w: Number(m.cumulativeWorkUnits) };
+  const prev = prevReading;
+  if (now.d > 0) prevReading = !prev || prev.epoch !== now.epoch || now.d < prev.d ? now : prev;
+  else prevReading = null;
+  if (Date.now() - lastCalibrationReport < 30000) return;
+  const body = {};
+  if (prev && prev.epoch === now.epoch && now.d > prev.d && now.w - prev.w >= 20) {
+    body.deltaDistanceMm = now.d - prev.d;
+    body.deltaWork = now.w - prev.w;
+    prevReading = now;
+  }
+  if (Number(m.rpmMilli) > 0) { body.speedMmPerSecond = Number(m.speedMmPerSecond); body.rpmMilli = Number(m.rpmMilli); }
+  if (!Object.keys(body).length) return;
   lastCalibrationReport = Date.now();
-  fetch("/api/calibrate", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      distanceMm: Number(m.distanceMm), cumulativeWorkUnits: Number(m.cumulativeWorkUnits),
-      speedMmPerSecond: Number(m.speedMmPerSecond), rpmMilli: Number(m.rpmMilli),
-    }),
-  }).catch(() => {});
+  fetch("/api/calibrate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).catch(() => {});
 }
 
 async function browserLive() {
@@ -588,8 +594,8 @@ setInterval(() => { if (!race) loadRounds(); }, 60000);
 // While the wheel is not calibrated yet, check it more often so a short run is not missed.
 setInterval(async () => {
   if (race || data?.circumference?.mm) return;
-  const live = await browserLive();
+  const live = await browserLive(); // also feeds calibration readings
   if (live && data) { data.live = live; renderLive(); }
   // Pick up the calibration once the server has it.
   if (Date.now() - lastCalibrationReport < 20000) setTimeout(() => { if (!race) loadRounds(); }, 5000);
-}, 15000);
+}, 10000);
