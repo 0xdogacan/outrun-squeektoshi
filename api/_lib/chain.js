@@ -228,6 +228,11 @@ export async function lookupRound(round) {
 
 let lastSampleAt = 0;
 
+// Cross-checked against the official livestream: its daily distance read 6.34 km at
+// the end of round 365 (Nov 6, 11:40 Istanbul), and rounds 296-365 settled 7,231
+// turns on SqueekCore. 6,340,000 mm / 7,231 = 877 mm, a standard 28 cm wheel.
+export const DEFAULT_CIRCUMFERENCE_MM = 877;
+
 // Wheel circumference in mm. An operator-set value wins; otherwise the median of
 // samples taken from live telemetry (speed / RPM) while the wheel is spinning.
 export async function circumference(status) {
@@ -248,8 +253,7 @@ export async function circumference(status) {
     const rows = await cached("calib", 60_000, () =>
       sb("calibration_samples?select=circumference_mm&order=id.desc&limit=200").catch(() => []));
     const mm = median(rows.map((r) => Number(r.circumference_mm)));
-    if (mm) return { mm, source: "telemetry", samples: rows.length };
+    if (mm && rows.length >= 5) return { mm, source: "telemetry", samples: rows.length };
   }
-  if (sample && fresh) return { mm: sample, source: "telemetry", samples: 1 };
-  return { mm: null, source: "calibrating" };
+  return { mm: DEFAULT_CIRCUMFERENCE_MM, source: "livestream" };
 }

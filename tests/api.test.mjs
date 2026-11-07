@@ -53,6 +53,7 @@ globalThis.fetch = async (url, opts = {}) => {
 
 process.env.SUPABASE_URL = "https://supabase.test";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
+process.env.WHEEL_CIRCUMFERENCE_MM = "700";
 
 const { default: rounds } = await import("../api/rounds.js");
 const { default: round } = await import("../api/round.js");

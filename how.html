@@ -26,7 +26,7 @@
     <ul>
       <li>Each round's work comes from SqueekCore's <code>RoundRecorded</code> events on Ethereum Sepolia. A round settled with no event had zero work.</li>
       <li>One work unit is one turn of the wheel, so distance = work × wheel circumference.</li>
-      <li>The circumference is measured from Squeekchain's live telemetry while he runs: speed ÷ revolutions per second. We use the median of many readings.</li>
+      <li>The wheel's circumference is 877 mm (a 28 cm wheel). We cross-checked it against the official livestream: its daily distance read 6.34 km at the end of round 365, and SqueekCore settled 7,231 turns from midnight to then. Live readings refine it while he runs.</li>
       <li>Every result links its settlement transaction, so you can check the hamster's number yourself.</li>
     </ul>
 
