@@ -5,10 +5,11 @@
 import { median, circumferenceFromTelemetry } from "../../lib/core.js";
 import { supabaseConfigured, sb } from "./supabase.js";
 
+export { RPC_ENDPOINTS };
 export const API_BASE = process.env.SQUEEKCHAIN_API || "https://api.squeekchain.com";
 
 const RPC_ENDPOINTS = (process.env.SEPOLIA_RPC_URLS ||
-  "https://ethereum-sepolia-rpc.publicnode.com,https://sepolia.drpc.org,https://1rpc.io/sepolia,https://ethereum-sepolia.public.blastapi.io")
+  "https://ethereum-sepolia-rpc.publicnode.com,https://sepolia.gateway.tenderly.co,https://rpc.sepolia.ethpandaops.io,https://sepolia.drpc.org,https://1rpc.io/sepolia")
   .split(",").map((s) => s.trim()).filter(Boolean);
 
 // keccak256("RoundRecorded(uint64,uint64,uint64,uint96,uint32,bytes32)")
@@ -112,26 +113,40 @@ export function liveFromStatus(status) {
 }
 
 let preferredRpc = null;
+export async function rpcAt(url, method, params, timeoutMs = 10_000) {
+  let res;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (err) {
+    // Node's "fetch failed" hides the real reason in err.cause.
+    const why = err?.cause?.code || err?.cause?.message || err?.name || err?.message;
+    throw new Error(`${new URL(url).host}: ${why}`);
+  }
+  const text = await res.text();
+  let j;
+  try { j = JSON.parse(text); } catch { throw new Error(`${new URL(url).host}: HTTP ${res.status} ${text.slice(0, 80)}`); }
+  if (j.error) throw new Error(`${new URL(url).host}: ${j.error.message || "rpc error"}`);
+  return j.result;
+}
+
 async function rpc(method, params) {
   const order = preferredRpc ? [preferredRpc, ...RPC_ENDPOINTS.filter((u) => u !== preferredRpc)] : RPC_ENDPOINTS;
-  let lastError;
+  const errors = [];
   for (const url of order) {
     try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-        signal: AbortSignal.timeout(10_000),
-      });
-      const j = await res.json();
-      if (j.error) throw new Error(j.error.message || "rpc error");
+      const result = await rpcAt(url, method, params);
       preferredRpc = url;
-      return j.result;
+      return result;
     } catch (err) {
-      lastError = err;
+      errors.push(err.message);
     }
   }
-  throw new Error(`every Sepolia RPC failed: ${lastError?.message}`);
+  throw new Error(`every Sepolia RPC failed: ${errors.join(" | ")}`);
 }
 
 const hex = (n) => `0x${Number(n).toString(16)}`;
