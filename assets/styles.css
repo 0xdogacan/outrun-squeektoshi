@@ -94,6 +94,17 @@ h2 { font-size: 22px; margin: 0; }
 .ghost .diff[data-d="Stroll"] { color: var(--muted); }
 .ghost .diff[data-d="Zoomies"] { color: var(--live); }
 
+.pager { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 6px; }
+.pager button {
+  min-width: 36px; height: 36px; padding: 0 10px; border-radius: 9px;
+  border: 1px solid var(--line); background: transparent; color: var(--muted);
+  font: 700 14px var(--mono); cursor: pointer;
+}
+.pager button:hover:not(:disabled) { color: var(--ink); border-color: var(--ham); }
+.pager button[aria-current="page"] { color: #04130b; background: var(--ham); border-color: var(--ham); opacity: 1; }
+.pager button:disabled:not([aria-current]) { opacity: .35; cursor: default; }
+.pager span { color: var(--muted); padding: 0 2px; }
+
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
 .tabs button {
   font: 13px var(--sans); padding: 6px 10px; border-radius: 8px;

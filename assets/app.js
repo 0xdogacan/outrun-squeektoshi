@@ -138,12 +138,43 @@ function ghostButton(g) {
   b.innerHTML = `<span class="when"></span><span class="dist"></span><span class="sub muted"></span><span class="diff"></span>`;
   b.querySelector(".when").textContent = `Round ${g.round} · ${whenText(g.startsAt)}`;
   b.querySelector(".dist").textContent = formatMeters(g.meters);
-  b.querySelector(".sub").textContent = `${g.work} wheel turns`;
+  b.querySelector(".sub").textContent = `${g.work.toLocaleString("en-US")} wheel ${g.work === 1 ? "turn" : "turns"}`;
   const d = b.querySelector(".diff");
   d.textContent = g.difficulty.toUpperCase();
   d.dataset.d = g.difficulty;
   b.addEventListener("click", () => openSetup({ mode: "ghost", round: g.round, ghostMeters: g.meters, txHash: g.txHash }));
   return b;
+}
+
+const GHOSTS_PER_PAGE = 5;
+const MIN_GHOST_TURNS = 25;
+let ghostPage = 1;
+
+// Page buttons: 1 2 3 … with arrows; long lists show the first, last and nearby pages.
+function pager(pages) {
+  const nav = document.createElement("nav");
+  nav.className = "pager";
+  nav.setAttribute("aria-label", "Ghost pages");
+  const go = (p) => { ghostPage = p; renderGhosts(); $("ghost-list").scrollIntoView({ block: "nearest", behavior: "smooth" }); };
+  const add = (label, page, { current = false, disabled = false, aria } = {}) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    if (aria) b.setAttribute("aria-label", aria);
+    if (current) b.setAttribute("aria-current", "page");
+    b.disabled = disabled || current;
+    b.addEventListener("click", () => go(page));
+    nav.appendChild(b);
+  };
+  add("‹", ghostPage - 1, { disabled: ghostPage === 1, aria: "Previous page" });
+  const shown = new Set([1, pages, ghostPage - 1, ghostPage, ghostPage + 1].filter((p) => p >= 1 && p <= pages));
+  let last = 0;
+  [...shown].sort((a, b) => a - b).forEach((p) => {
+    if (p - last > 1) { const gap = document.createElement("span"); gap.textContent = "…"; nav.appendChild(gap); }
+    add(String(p), p, { current: p === ghostPage, aria: `Page ${p}` });
+    last = p;
+  });
+  add("›", ghostPage + 1, { disabled: ghostPage === pages, aria: "Next page" });
+  return nav;
 }
 
 function renderGhosts() {
@@ -171,7 +202,12 @@ function renderGhosts() {
       `His fastest round this week: ${formatMeters(best.meters)} in 10 minutes. Nobody expects you to win.`;
     boss.appendChild(ghostButton(best));
   }
-  data.ghosts.filter((g) => g.round !== best?.round).slice(0, 20).forEach((g) => list.appendChild(ghostButton(g)));
+  // Rounds with only a few turns are not much of a race.
+  const ghosts = data.ghosts.filter((g) => g.round !== best?.round && g.work >= MIN_GHOST_TURNS);
+  const pages = Math.max(1, Math.ceil(ghosts.length / GHOSTS_PER_PAGE));
+  ghostPage = Math.min(ghostPage, pages);
+  ghosts.slice((ghostPage - 1) * GHOSTS_PER_PAGE, ghostPage * GHOSTS_PER_PAGE).forEach((g) => list.appendChild(ghostButton(g)));
+  if (pages > 1) list.appendChild(pager(pages));
 }
 
 function tickCountdown() {
