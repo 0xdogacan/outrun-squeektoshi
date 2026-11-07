@@ -102,3 +102,33 @@ test("Supabase URL is normalized from common pastes", async () => {
   assert.equal(n(" abc.supabase.co "), "https://abc.supabase.co");
   assert.equal(n("https://supabase.com/dashboard/project/abc123/settings/api"), "https://abc123.supabase.co");
 });
+
+test("GPS tracker counts a straight run and ignores jitter", async () => {
+  const { GpsTracker, haversineMeters } = await import("../lib/core.js");
+  const g = new GpsTracker();
+  const lat0 = 41.0, lon0 = 29.0, mPerDegLat = 111_195;
+  // 300 s at 3 m/s heading north, one fix per second, accuracy 6 m.
+  for (let i = 0; i <= 300; i++) g.push(i * 1000, lat0 + (i * 3) / mPerDegLat, lon0, 6);
+  assert.ok(Math.abs(g.meters - 900) < 15, `meters=${g.meters}`);
+  // Standing still with 5 m of jitter adds nothing meaningful.
+  const still = new GpsTracker();
+  for (let i = 0; i < 120; i++) still.push(i * 1000, lat0 + ((i % 2) * 4) / mPerDegLat, lon0, 8);
+  assert.ok(still.meters < 5, `still=${still.meters}`);
+  // A 500 m jump in one second is a glitch.
+  const jump = new GpsTracker();
+  jump.push(0, lat0, lon0, 5); jump.push(1000, lat0 + 500 / mPerDegLat, lon0, 5);
+  assert.equal(jump.meters, 0);
+  // Poor fixes are skipped.
+  const poor = new GpsTracker();
+  poor.push(0, lat0, lon0, 80); poor.push(5000, lat0 + 20 / mPerDegLat, lon0, 80);
+  assert.equal(poor.meters, 0);
+  assert.ok(Math.abs(haversineMeters({ lat: 0, lon: 0 }, { lat: 1, lon: 0 }) - 111_195) < 10);
+});
+
+test("a catch ranks by projected pace; plausibility uses speed", async () => {
+  const { rankingMargin, plausibility } = await import("../lib/core.js");
+  assert.equal(rankingMargin({ meters: 530, durationSec: 300, hamsterM: 530 }), 530);
+  assert.equal(rankingMargin({ meters: 400, durationSec: 600, hamsterM: 530 }), -130);
+  assert.equal(plausibility({ meters: 300, steps: 0, durationSec: 30 }).ok, false);
+  assert.equal(plausibility({ meters: 530, steps: 0, durationSec: 200 }).ok, true);
+});

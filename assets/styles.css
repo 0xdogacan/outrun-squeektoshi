@@ -134,6 +134,13 @@ h2 { font-size: 22px; margin: 0; }
   background: #0b0e0c; color: var(--ink); border: 1px solid var(--line); border-radius: 10px;
 }
 .sheet .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.method { border: 0; padding: 0; margin: 14px 0 0; }
+.method legend { font-size: 14px; color: var(--muted); padding: 0; margin-bottom: 6px; }
+.sheet .choice { display: flex; gap: 10px; align-items: center; margin: 6px 0 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; color: var(--ink); }
+.sheet .choice input { width: auto; margin: 0; accent-color: var(--you); }
+.choice span { display: grid; }
+.choice small { color: var(--muted); font-size: 13px; }
+.choice:has(input:checked) { border-color: var(--you); }
 .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
 
 /* Race */

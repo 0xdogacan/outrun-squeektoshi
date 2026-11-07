@@ -4,10 +4,10 @@
 
 import { lookupRound, getCore, getStatus, circumference } from "./_lib/chain.js";
 import { supabaseConfigured, sb } from "./_lib/supabase.js";
-import { hamsterMeters, plausibility, roundEndMs } from "../lib/core.js";
+import { hamsterMeters, plausibility, roundEndMs, rankingMargin } from "../lib/core.js";
 
 const PERIODS = { day: 86400e3, week: 7 * 86400e3 };
-const COLUMNS = "nickname,mode,round,player_m,hamster_m,margin_m,created_at";
+const COLUMNS = "nickname,mode,round,player_m,hamster_m,margin_m,duration_s,created_at";
 
 function cleanNickname(s) {
   const t = String(s || "").normalize("NFKC").replace(/[^\p{L}\p{N} _.-]/gu, "").trim().slice(0, 20);
@@ -56,8 +56,8 @@ async function submit(req, res) {
     res.status(400).json({ error: "Invalid submission." });
     return;
   }
-  if (b.incomplete || durationSec < 590) {
-    res.status(422).json({ error: "Only complete 10-minute runs go on the leaderboard." });
+  if (b.incomplete || durationSec > 605 || (mode === "live" && durationSec < 590)) {
+    res.status(422).json({ error: "Only complete runs go on the leaderboard." });
     return;
   }
 
@@ -84,11 +84,18 @@ async function submit(req, res) {
   }
 
   const hamsterM = hamsterMeters(official.work, calib.mm);
+  // A ghost race shorter than 10 minutes must have ended by reaching his distance.
+  const caught = mode === "ghost" && durationSec < 590;
+  if (caught && meters < hamsterM * 0.98) {
+    res.status(422).json({ error: "A ghost race ends at 10 minutes or when you reach his distance." });
+    return;
+  }
   const check = plausibility({ meters, steps, durationSec });
+  const margin = rankingMargin({ meters, durationSec, hamsterM, roundSec: 600 });
   const row = {
     mode, round, nickname, device_id: deviceId,
     player_m: meters, steps, duration_s: durationSec,
-    hamster_work: official.work, hamster_m: hamsterM, margin_m: meters - hamsterM,
+    hamster_work: official.work, hamster_m: hamsterM, margin_m: margin,
     circumference_mm: calib.mm,
     flagged: !check.ok, flag_reasons: check.reasons, asleep: official.work === 0,
   };

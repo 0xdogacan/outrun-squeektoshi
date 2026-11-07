@@ -1,5 +1,5 @@
 import {
-  StepCounter, nextRoundStart, strideMeters, hamsterMeters, verdict, commentary, formatMeters,
+  StepCounter, GpsTracker, nextRoundStart, strideMeters, hamsterMeters, verdict, commentary, formatMeters,
 } from "/lib/core.js";
 
 const SQUEEK_API = "https://api.squeekchain.com";
@@ -147,7 +147,7 @@ function ghostButton(g) {
 }
 
 const GHOSTS_PER_PAGE = 5;
-const MIN_GHOST_TURNS = 25;
+const MIN_GHOST_TURNS = 60;
 let ghostPage = 1;
 
 // Page buttons: 1 2 3 … with arrows; long lists show the first, last and nearby pages.
@@ -234,9 +234,12 @@ async function loadBoard() {
       li.innerHTML = `<span class="rank"></span><span><span class="name"></span><br><span class="muted small"></span></span><span class="m"></span>`;
       li.querySelector(".rank").textContent = i + 1;
       li.querySelector(".name").textContent = r.nickname;
-      li.querySelector(".small").textContent = `${formatMeters(r.player_m)} vs ${formatMeters(r.hamster_m)} · round ${r.round}`;
+      const caughtIn = r.mode === "ghost" && r.duration_s < 590 && r.player_m >= r.hamster_m * 0.98;
+      li.querySelector(".small").textContent = caughtIn
+        ? `caught his ${formatMeters(r.hamster_m)} in ${clock(r.duration_s)} · round ${r.round}`
+        : `${formatMeters(r.player_m)} vs ${formatMeters(r.hamster_m)} · round ${r.round}`;
       const m = li.querySelector(".m");
-      m.textContent = `${r.margin_m >= 0 ? "+" : "−"}${formatMeters(Math.abs(r.margin_m))}`;
+      m.textContent = caughtIn ? clock(r.duration_s) : `${r.margin_m >= 0 ? "+" : "−"}${formatMeters(Math.abs(r.margin_m))}`;
       m.classList.add(r.margin_m >= 0 ? "win" : "loss");
       list.appendChild(li);
     });
@@ -265,14 +268,42 @@ function openSetup(race) {
   f.nickname.value = p.nickname || "";
   f.height.value = p.height || "";
   f.stride.value = p.stride || "";
+  f.method.value = p.method || "gps";
+  syncMethod();
   $("setup-error").hidden = true;
   $("setup-sub").textContent = race.mode === "live"
     ? "You will join the next live round. Results arrive a few minutes after it ends."
-    : `Ghost: round ${race.round}, ${formatMeters(race.ghostMeters)} in 10 minutes. Starts right away.`;
+    : `Run ${formatMeters(race.ghostMeters)} before 10 minutes are up. Reach it and you win. Starts right away.`;
   $("setup").showModal();
 }
 
 $("setup-cancel").addEventListener("click", () => $("setup").close());
+
+function syncMethod() {
+  const steps = $("setup-form").method.value === "steps";
+  $("stride-fields").hidden = !steps;
+}
+document.querySelectorAll('input[name="method"]').forEach((r) => r.addEventListener("change", syncMethod));
+
+// Ask for location and wait for a fix good enough to measure a run.
+function requestGps(timeoutMs = 25000) {
+  if (SIM) return Promise.resolve({ ok: true });
+  if (!navigator.geolocation) return Promise.resolve({ ok: false, why: "unsupported" });
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (r) => { if (done) return; done = true; navigator.geolocation.clearWatch(id); clearTimeout(timer); resolve(r); };
+    const id = navigator.geolocation.watchPosition(
+      (pos) => {
+        $("setup-error").hidden = false;
+        $("setup-error").textContent = `Finding GPS… accuracy ±${Math.round(pos.coords.accuracy)} m`;
+        if (pos.coords.accuracy <= 30) finish({ ok: true });
+      },
+      (err) => finish({ ok: false, why: err.code === 1 ? "denied" : "unavailable" }),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: timeoutMs },
+    );
+    const timer = setTimeout(() => finish({ ok: false, why: "weak" }), timeoutMs);
+  });
+}
 $("join-live").addEventListener("click", () => openSetup({ mode: "live" }));
 
 async function requestMotion() {
@@ -303,23 +334,39 @@ $("setup-form").addEventListener("submit", async (e) => {
   const nickname = f.nickname.value.trim();
   const height = Number(f.height.value) || 0;
   const stride = Number(f.stride.value) || 0;
+  const method = f.method.value === "steps" ? "steps" : "gps";
   if (nickname.length < 2) { err.textContent = "Pick a nickname (2–20 characters)."; err.hidden = false; return; }
-  if (!height && !stride) { err.textContent = "Enter your height or your stride."; err.hidden = false; return; }
-  store.set("profile", { nickname, height, stride });
+  if (method === "steps" && !height && !stride) { err.textContent = "Enter your height or your stride."; err.hidden = false; return; }
+  store.set("profile", { nickname, height, stride, method });
 
   $("setup-go").disabled = true;
-  const granted = await requestMotion();
-  const alive = granted && await sensorAlive();
-  $("setup-go").disabled = false;
-  if (!alive) {
-    err.textContent = granted
-      ? "No motion sensor found. Open this page on your phone."
-      : "Motion access is needed to count your steps. Allow it and try again.";
-    err.hidden = false;
-    return;
+  if (method === "gps") {
+    const gps = await requestGps();
+    $("setup-go").disabled = false;
+    if (!gps.ok) {
+      err.textContent = {
+        denied: "Location access is needed to measure your run. Allow it in your browser settings, or choose Inside.",
+        unsupported: "This browser has no GPS. Choose Inside to count steps instead.",
+        weak: "GPS signal is too weak here. Step outside, or choose Inside to count steps.",
+      }[gps.why] || "Could not get a GPS fix. Try again, or choose Inside.";
+      err.hidden = false;
+      return;
+    }
+  } else {
+    const granted = await requestMotion();
+    const alive = granted && await sensorAlive();
+    $("setup-go").disabled = false;
+    if (!alive) {
+      err.textContent = granted
+        ? "No motion sensor found. Open this page on your phone."
+        : "Motion access is needed to count your steps. Allow it and try again.";
+      err.hidden = false;
+      return;
+    }
   }
+  err.hidden = true;
   $("setup").close();
-  startRace({ ...pending, nickname, height, stride });
+  startRace({ ...pending, nickname, height, stride, method });
 });
 
 /* --------------------------------- race ---------------------------------- */
@@ -342,6 +389,14 @@ function onMotion(e) {
   const t = serverNow();
   if (t < race.startAt) return;
   race.counter.push(t, a.x, a.y, a.z);
+}
+
+function onPosition(pos) {
+  if (!race || race.done) return;
+  const t = serverNow();
+  race.gpsAccuracy = pos.coords.accuracy;
+  if (t < race.startAt) return;
+  race.counter.push(t, pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
 }
 
 function startSim() {
@@ -371,7 +426,8 @@ async function startRace(opts) {
   }
   race = {
     ...opts, round, startAt, endAt: startAt + RACE_SECONDS * 1000, done: false,
-    counter: new StepCounter({ heightCm: opts.height, customStrideCm: opts.stride }),
+    counter: opts.method === "gps" && !SIM ? new GpsTracker() : new StepCounter({ heightCm: opts.height, customStrideCm: opts.stride }),
+    gpsAccuracy: null,
     circumference: data.circumference.mm, liveBase: null, liveMeters: null, liveNote: "",
   };
   $("race-mode").textContent = opts.mode === "live" ? "LIVE" : "GHOST";
@@ -380,7 +436,14 @@ async function startRace(opts) {
   $("you-m").textContent = "0 m";
   $("ham-m").textContent = "0 m";
   show("race");
-  window.addEventListener("devicemotion", onMotion);
+  if (opts.method === "gps" && !SIM) {
+    race.watchId = navigator.geolocation.watchPosition(onPosition, () => {}, { enableHighAccuracy: true, maximumAge: 0 });
+  } else {
+    window.addEventListener("devicemotion", onMotion);
+  }
+  $("stat1-label").textContent = opts.mode === "ghost" ? "To go" : "Steps";
+  $("stat2-label").textContent = "Pace";
+  $("stat3-label").textContent = opts.method === "gps" && !SIM ? "GPS" : "Stride";
   if (SIM) startSim();
   keepAwake();
   race.timer = setInterval(tick, 250);
@@ -429,13 +492,20 @@ function tick() {
   $("ham-bar").style.width = `${((ham || 0) / scale) * 100}%`;
   $("ham-note").textContent = race.mode === "ghost"
     ? `Ghost of round ${race.round} · his average pace` : race.liveNote;
-  $("steps").textContent = c.steps;
-  $("cadence").textContent = `${c.cadence(now).toFixed(1)}/s`;
-  $("stride").textContent = `${Math.round(strideMeters({ heightCm: race.height, customStrideCm: race.stride, cadence: c.cadence(now) }) * 100)} cm`;
+  const togo = race.mode === "ghost" ? Math.max(0, race.ghostMeters - you) : null;
+  $("steps").textContent = race.mode === "ghost" ? formatMeters(togo) : c.steps;
+  const pace = elapsed > 5 && you > 1 ? (elapsed / 60) / (you / 1000) : null; // min per km
+  $("cadence").textContent = pace && pace < 60 ? `${Math.floor(pace)}:${String(Math.round((pace % 1) * 60)).padStart(2, "0")}/km` : "–";
+  $("stride").textContent = race.method === "gps" && !SIM
+    ? (race.gpsAccuracy ? `±${Math.round(race.gpsAccuracy)} m` : "…")
+    : `${Math.round(strideMeters({ heightCm: race.height, customStrideCm: race.stride, cadence: c.cadence(now) }) * 100)} cm`;
   if (ham !== null && you > 0) {
     const d = you - ham;
-    $("gap-line").textContent = Math.abs(d) < 1 ? "Neck and neck!" : d > 0 ? `You lead by ${formatMeters(d)}` : `${formatMeters(-d)} behind a hamster`;
+    $("gap-line").textContent = race.mode === "ghost"
+      ? (d >= 0 ? `Ahead of his pace by ${formatMeters(d)} · ${formatMeters(togo)} to go` : `${formatMeters(-d)} behind his pace · ${formatMeters(togo)} to go`)
+      : Math.abs(d) < 1 ? "Neck and neck!" : d > 0 ? `You lead by ${formatMeters(d)}` : `${formatMeters(-d)} behind a hamster`;
   }
+  if (race.mode === "ghost" && you >= race.ghostMeters) return finish(elapsed);
   if (now >= race.endAt) finish();
 }
 
@@ -445,6 +515,7 @@ function stopRace() {
   clearInterval(race.timer);
   clearInterval(race.poller);
   window.removeEventListener("devicemotion", onMotion);
+  if (race.watchId !== undefined) navigator.geolocation.clearWatch(race.watchId);
   race.wakeLock?.release?.().catch(() => {});
 }
 
@@ -460,13 +531,15 @@ document.addEventListener("visibilitychange", () => {
 });
 
 /* -------------------------------- result --------------------------------- */
-async function finish() {
+async function finish(caughtAtSec) {
   stopRace();
   const c = race.counter;
-  const lastGap = c.lastSampleAt === null ? Infinity : race.endAt - c.lastSampleAt;
+  const durationSec = caughtAtSec ? Math.max(1, Math.round(caughtAtSec)) : RACE_SECONDS;
+  const endedAt = race.startAt + durationSec * 1000;
+  const lastGap = c.lastSampleAt === null ? Infinity : endedAt - c.lastSampleAt;
   const result = {
-    mode: race.mode, round: race.round, nickname: race.nickname,
-    meters: c.meters, steps: c.steps, durationSec: RACE_SECONDS,
+    mode: race.mode, round: race.round, nickname: race.nickname, method: race.method,
+    meters: c.meters, steps: c.steps, durationSec, caught: Boolean(caughtAtSec),
     incomplete: c.incomplete() || lastGap > 30000, sim: SIM,
   };
   $("result-mode").textContent = race.mode === "live" ? "LIVE" : "GHOST";
@@ -499,8 +572,9 @@ async function finish() {
 async function showFinal(result, hamM, txHash) {
   $("result-wait").hidden = true;
   $("result-final").hidden = false;
-  const v = verdict(result.meters, hamM);
-  const title = v.kind === "asleep" ? "You beat a sleeping hamster"
+  const v = result.caught ? { winner: "player", kind: "win", margin: 100 } : verdict(result.meters, hamM);
+  const title = result.caught ? `You caught Squeektoshi in ${clock(result.durationSec)}`
+    : v.kind === "asleep" ? "You beat a sleeping hamster"
     : v.kind === "tie" ? "Dead heat"
     : v.winner === "player" ? `You outran Squeektoshi by ${formatMeters(v.margin)}`
     : `Squeektoshi wins by ${formatMeters(-v.margin)}`;
@@ -519,14 +593,16 @@ async function showFinal(result, hamM, txHash) {
   }
 
   await drawCard(result, hamM, title);
-  const text = v.winner === "player"
+  const text = result.caught
+    ? `I ran Squeektoshi's ${formatMeters(hamM)} in ${clock(result.durationSec)} and beat a hamster 🐹🏃 Round ${result.round}, settled on Ethereum.`
+    : v.winner === "player"
     ? `I outran Squeektoshi the hamster by ${formatMeters(v.margin)} 🐹🏃 Round ${result.round}, settled on Ethereum.`
     : `A hamster beat me by ${formatMeters(Math.abs(v.margin))} 🐹 Squeektoshi, round ${result.round}. Can you outrun him?`;
   $("share-x").href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(location.origin)}`;
 
   const status = $("submit-status");
   if (result.sim) { status.textContent = "Practice run (simulated). Not sent to the leaderboard."; return; }
-  if (result.incomplete) { status.textContent = "The sensor paused during the run, so it is not ranked."; return; }
+  if (result.incomplete) { status.textContent = "Tracking paused during the run, so it is not ranked."; return; }
   status.textContent = "Saving to the leaderboard…";
   try {
     const res = await fetch("/api/scores", {

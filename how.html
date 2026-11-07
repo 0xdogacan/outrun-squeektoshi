@@ -32,15 +32,15 @@
 
     <h2>Your distance</h2>
     <ul>
-      <li>Your phone's motion sensor counts your steps. Distance = steps × stride.</li>
-      <li>Stride is the one you enter, or estimated from your height: 41.5% of it when walking and 65% when running.</li>
-      <li>Nothing leaves your phone during the run. Only your nickname, step count and distance are saved when you finish.</li>
+      <li><strong>Outside:</strong> your phone's GPS measures the distance. Fixes worse than ±30 m are skipped, small wobbles while you stand still are ignored, and jumps faster than 10 m/s are treated as glitches.</li>
+      <li><strong>Inside or on a treadmill:</strong> your phone's motion sensor counts your steps, multiplied by your stride (the one you enter, or estimated from your height).</li>
+      <li>Your location never leaves your phone. Only your nickname, distance and time are saved when you finish.</li>
       <li>Results are self-reported. Runs faster than a world-record pace, or with more than 4 steps a second, are hidden from the leaderboard.</li>
     </ul>
 
     <h2>Two ways to race</h2>
     <ul>
-      <li><strong>Ghost Race:</strong> pick one of his real rounds from the last 7 days. His ghost runs at that round's average pace, because Squeekchain records one total per round.</li>
+      <li><strong>Ghost Race:</strong> pick one of his real rounds from the last 7 days and run his distance. Reach it within 10 minutes and you win; your time is your score. His ghost shows that round's average pace, because Squeekchain records one total per round, not when in the round he ran.</li>
       <li><strong>Live Race:</strong> while he is on the wheel, join the next round as it happens. His official distance arrives a few minutes after the round, once it settles on Ethereum.</li>
     </ul>
 

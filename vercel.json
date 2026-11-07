@@ -5,7 +5,7 @@
       "source": "/(.*)",
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Permissions-Policy", "value": "accelerometer=(self), gyroscope=(self), geolocation=(), camera=(), microphone=()" }
+        { "key": "Permissions-Policy", "value": "accelerometer=(self), gyroscope=(self), geolocation=(self), camera=(), microphone=()" }
       ]
     }
   ]
