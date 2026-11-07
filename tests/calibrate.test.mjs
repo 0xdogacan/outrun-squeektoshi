@@ -33,3 +33,12 @@ test("rejects outliers once a few samples exist", async () => {
   // 1100 mm is in the plausible range but 57% away from the median.
   assert.equal((await call({ speedMmPerSecond: 1100, rpmMilli: 60000 })).code, 422);
 });
+
+test("odometer reading calibrates while the hamster rests", async () => {
+  stored = [];
+  const { circumferenceFromOdometer } = await import("../lib/core.js");
+  assert.equal(circumferenceFromOdometer(6_340_000, 9_000), 6_340_000 / 9_000);
+  assert.equal(circumferenceFromOdometer(6_340_000, 50), null);
+  assert.equal(circumferenceFromOdometer(100, 9_000), null);
+  await new Promise((r) => setTimeout(r, 0));
+});

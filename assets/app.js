@@ -73,12 +73,19 @@ async function loadRounds() {
   renderGhosts();
 }
 
-// Share a live wheel reading so the server can calibrate the wheel's size.
+// Share a wheel reading so the server can calibrate the wheel's size
+// (odometer distance / total turns works even while he rests). At most once a minute.
+let lastCalibrationReport = 0;
 function reportCalibration(m) {
+  if (Date.now() - lastCalibrationReport < 60000) return;
+  lastCalibrationReport = Date.now();
   fetch("/api/calibrate", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ speedMmPerSecond: Number(m.speedMmPerSecond), rpmMilli: Number(m.rpmMilli) }),
+    body: JSON.stringify({
+      distanceMm: Number(m.distanceMm), cumulativeWorkUnits: Number(m.cumulativeWorkUnits),
+      speedMmPerSecond: Number(m.speedMmPerSecond), rpmMilli: Number(m.rpmMilli),
+    }),
   }).catch(() => {});
 }
 
@@ -88,7 +95,7 @@ async function browserLive() {
     const m = j.measurement;
     if (!m) return null;
     const fresh = m.freshness === "online";
-    if (fresh && m.provenance === "hardware" && m.coreStatus === "ACTIVE") reportCalibration(m);
+    if (fresh && m.provenance === "hardware") reportCalibration(m);
     return {
       available: true, fresh, coreStatus: m.coreStatus, provenance: m.provenance,
       running: fresh && m.coreStatus === "ACTIVE" && Number(m.rpmMilli) > 0,
@@ -582,5 +589,7 @@ setInterval(() => { if (!race) loadRounds(); }, 60000);
 setInterval(async () => {
   if (race || data?.circumference?.mm) return;
   const live = await browserLive();
-  if (live?.running && data?.live) { data.live = live; renderLive(); }
+  if (live && data) { data.live = live; renderLive(); }
+  // Pick up the calibration once the server has it.
+  if (Date.now() - lastCalibrationReport < 20000) setTimeout(() => { if (!race) loadRounds(); }, 5000);
 }, 15000);

@@ -1,11 +1,11 @@
-// POST /api/calibrate { speedMmPerSecond, rpmMilli }
+// POST /api/calibrate { distanceMm, cumulativeWorkUnits, speedMmPerSecond, rpmMilli }
 // Visitors' browsers can read Squeekchain's live telemetry even when the server
 // is refused, so they report readings here while the wheel spins. The server
 // recomputes the circumference itself, rejects implausible values and, once a few
 // samples exist, anything more than 15% away from the current median.
 
 import { supabaseConfigured, sb } from "./_lib/supabase.js";
-import { circumferenceFromTelemetry, median } from "../lib/core.js";
+import { circumferenceFromTelemetry, circumferenceFromOdometer, median } from "../lib/core.js";
 
 let lastAcceptedAt = 0;
 
@@ -21,8 +21,10 @@ export default async function handler(req, res) {
   }
   try {
     const b = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
-    const mm = circumferenceFromTelemetry(Number(b.speedMmPerSecond), Number(b.rpmMilli));
-    if (!mm || Number(b.rpmMilli) < 10000) {
+    const odometer = circumferenceFromOdometer(b.distanceMm, b.cumulativeWorkUnits);
+    const live = Number(b.rpmMilli) >= 10000 ? circumferenceFromTelemetry(Number(b.speedMmPerSecond), Number(b.rpmMilli)) : null;
+    const mm = odometer || live;
+    if (!mm) {
       res.status(422).json({ error: "Not a usable reading." });
       return;
     }
