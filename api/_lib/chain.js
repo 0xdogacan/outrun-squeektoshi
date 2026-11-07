@@ -171,7 +171,7 @@ function isRoundRecorded(log) {
 
 async function getLogsChunked({ address, fromBlock, toBlock, topics }) {
   const out = [];
-  let step = 5000;
+  let step = 2000;
   let cursor = fromBlock;
   while (cursor <= toBlock) {
     const end = Math.min(cursor + step - 1, toBlock);
